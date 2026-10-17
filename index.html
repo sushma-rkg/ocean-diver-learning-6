@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ocean Diver</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #06324d; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let w, h;
+function resize() { w = canvas.width = innerWidth; h = canvas.height = innerHeight; }
+addEventListener('resize', resize);
+resize();
+
+const diver = { x: w / 2, y: h / 2, angle: 0, flip: 1, t: 0 };
+const target = { x: w / 2, y: h / 2 };
+const bubbles = [];
+
+const fish = { x: w * 0.2, y: h * 0.3, dir: 1, t: 0 };
+
+function aim(e) { target.x = e.clientX; target.y = e.clientY; }
+addEventListener('pointermove', aim);
+addEventListener('pointerdown', aim);
+
+function update() {
+  fish.t += 0.05;
+  fish.x += fish.dir * 1.5;
+  fish.y += Math.sin(fish.t) * 0.6;
+  if (fish.x > w + 40) fish.dir = -1;
+  if (fish.x < -40) fish.dir = 1;
+  const dx = target.x - diver.x, dy = target.y - diver.y;
+  const dist = Math.hypot(dx, dy);
+  diver.t += 0.15;
+  if (dist > 4) {
+    const speed = Math.min(dist * 0.04, 6);
+    diver.x += dx / dist * speed;
+    diver.y += dy / dist * speed;
+    if (Math.abs(dx) > 2) diver.flip = dx > 0 ? 1 : -1;
+    const want = Math.atan2(dy, Math.abs(dx)) * diver.flip;
+    diver.angle += (want - diver.angle) * 0.1;
+  } else {
+    diver.angle *= 0.9;
+  }
+  if (Math.random() < 0.15) {
+    bubbles.push({
+      x: diver.x + diver.flip * 22 + (Math.random() - 0.5) * 6,
+      y: diver.y - 10,
+      r: 2 + Math.random() * 4,
+      vy: 0.8 + Math.random() * 1.2,
+      ph: Math.random() * 6.28
+    });
+  }
+  for (const b of bubbles) { b.y -= b.vy; b.ph += 0.05; b.x += Math.sin(b.ph) * 0.5; }
+  for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].y < -10) bubbles.splice(i, 1);
+}
+
+function drawDiver() {
+  ctx.save();
+  ctx.translate(diver.x, diver.y);
+  ctx.scale(diver.flip, 1);
+  ctx.rotate(diver.angle);
+  const kick = Math.sin(diver.t) * 8;
+  // flippers
+  ctx.fillStyle = '#ffb703';
+  ctx.beginPath(); ctx.ellipse(-34, kick, 11, 5, 0, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-34, -kick, 11, 5, 0, 0, 6.28); ctx.fill();
+  // tank
+  ctx.fillStyle = '#adb5bd';
+  ctx.beginPath(); ctx.ellipse(-4, -12, 14, 6, 0, 0, 6.28); ctx.fill();
+  // body
+  ctx.fillStyle = '#1d3557';
+  ctx.beginPath(); ctx.ellipse(-8, 0, 24, 11, 0, 0, 6.28); ctx.fill();
+  // head and mask
+  ctx.fillStyle = '#f1c27d';
+  ctx.beginPath(); ctx.arc(18, 0, 9, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#a8dadc';
+  ctx.beginPath(); ctx.ellipse(22, -1, 6, 5, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#1d3557'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
+
+function drawFish() {
+  ctx.save();
+  ctx.translate(fish.x, fish.y);
+  ctx.scale(fish.dir, 1);
+  const wag = Math.sin(fish.t * 6) * 4;
+  ctx.fillStyle = '#ff7b00';
+  ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(-30, -9 + wag); ctx.lineTo(-30, 9 + wag); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 20, 12, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(10, -3, 3.5, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(11, -3, 1.6, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#4cc9f0'); g.addColorStop(1, '#03142b');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  for (const b of bubbles) {
+    ctx.globalAlpha = Math.min(1, b.y / (h * 0.3));
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.28); ctx.fill(); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  drawFish();
+  drawDiver();
+}
+
+(function loop() { update(); draw(); requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>
